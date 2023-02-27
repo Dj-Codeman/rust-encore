@@ -52,7 +52,7 @@ pub const LOG_FILE_LOCATION: &str = "/var/log/encore/general";
 	//  key_max the limit of keys to generate
 	//  default=50000
 
-pub const KEY_GEN_UPPER_LIMIT: u32 = 500;
+pub const KEY_GEN_UPPER_LIMIT: u32 = 5000;
 
 	//  Works like a key min value
 	//  by key_cur and key_max the range from which keys are picked
@@ -89,4 +89,4 @@ pub const LEAVE_IN_PEACE: bool = true;
 	// THIS IS LESS SECURE BECAUSE THE KEY IS TECHNICALLY STORED ON THE MACHINE
 
 pub const USE_PRE_DEFINED_USERKEY: bool = true;
-pub const PRE_DEFINED_USERKEY: &str = "Danny9518!";
+pub const PRE_DEFINED_USERKEY: &str = "Secret";
