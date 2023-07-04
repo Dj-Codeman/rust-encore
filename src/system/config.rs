@@ -34,7 +34,7 @@ pub const COMMON_KEY_DIRECTORY: &str = "/var/encore/keys";
 	//  default /opt/encore/keys/systemkey.dk
 
 
-pub const SYSTEM_KEY_LOCATION: &str = "/etc/systemkey.dk";
+pub const SYSTEM_KEY_LOCATION: &str = "/var/systemkey.dk";
 
 	//	The user key is derived from the users specific password
 	//	This is the key used to encrypt the files them selfs while
@@ -43,11 +43,12 @@ pub const SYSTEM_KEY_LOCATION: &str = "/etc/systemkey.dk";
 	//  $datadir will be illegible
 	//  IF THIS KEY IS DELETED ALL DATA IS CONSIDERED LOST
 
-pub const USER_KEY_LOCATION: &str = "/etc/userkey.dk";
+pub const USER_KEY_LOCATION: &str = "/var/userkey.dk";
 
 	// log dir
 
-pub const LOG_FILE_LOCATION: &str = "/var/log/encore/general";
+// pub const LOG_FILE_LOCATION: &str = "/var/log/encore/general";
+pub const LOG_FILE_LOCATION: &str = "/var/encore/general";
 
 	//  key_max the limit of keys to generate
 	//  default=50000
@@ -59,6 +60,14 @@ pub const KEY_GEN_UPPER_LIMIT: u32 = 5000;
 	//  can be changed
 
 pub const KEY_GEN_LOWER_LIMIT: u32 = 0;
+
+	// currently for debuging 
+	// the stream buffer will be dynamically assigned at runtime
+	// if this space is not available on run time exit with "No free resources"
+	// dynamiclly allocated write should have this functionallity built in too 
+	// 1Mb 
+
+pub const STREAMING_BUFFER_SIZE: f64 = 51200.00;
 
 	//  soft moving
 	//  set 1 to use cp instead of mv when gatheing files to encrypt
@@ -81,7 +90,7 @@ pub const REPLACE_FILE_ON_DEL: bool = true;
 	//  default = true
 
 
-pub const LEAVE_IN_PEACE: bool = true;
+pub const LEAVE_IN_PEACE: bool = false;
 
 	// PRE DEFINED SECRET 
 	// if you use encore when no password can be input the userkey prompt can 
@@ -89,4 +98,4 @@ pub const LEAVE_IN_PEACE: bool = true;
 	// THIS IS LESS SECURE BECAUSE THE KEY IS TECHNICALLY STORED ON THE MACHINE
 
 pub const USE_PRE_DEFINED_USERKEY: bool = true;
-pub const PRE_DEFINED_USERKEY: &str = "Secret";
+pub const PRE_DEFINED_USERKEY: &str = "Secret1!";

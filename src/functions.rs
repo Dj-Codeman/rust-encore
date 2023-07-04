@@ -1,21 +1,22 @@
 #[path = "system/system.rs"] mod system;
 #[path = "system/config.rs"] mod config;
 #[path = "system/encrypt.rs"] mod encrypt;
+#[path = "system/encrypt_functions.rs"] mod encrypt_functions;
 // includes
-use chrono::{Datelike, DateTime, Timelike, Local};
-use base64::{encode};
+
+
 use hex;
 use serde::{Serialize, Deserialize};
-use std::{io::{Write, prelude::*}, fs::{OpenOptions, File, canonicalize, remove_dir_all, create_dir_all, read_to_string}, path::Path, str};
+use std::{io::{Write, prelude::*}, fs::{OpenOptions, File, remove_dir_all, create_dir_all, read_to_string}, path::Path, str};
 use rpassword::read_password;
 use ring::pbkdf2;
-use rand::distributions::{Distribution, Uniform};
+use sysinfo::{System, SystemExt}; // for finding free ram for vectors
 
 use self::{
-    system::{output, halt, warn, notice, pass, VERSION, HELP, truncate}, 
+    system::{output, halt, warn, notice, pass, VERSION, HELP, append_log, start_log}, 
     config::{KEY_GEN_UPPER_LIMIT, KEY_GEN_LOWER_LIMIT, PRE_DEFINED_USERKEY, USE_PRE_DEFINED_USERKEY, PUBLIC_MAP_DIRECTORY, SYSTEM_KEY_LOCATION,
-        COMMON_KEY_DIRECTORY, USER_KEY_LOCATION, SECRET_MAP_DIRECTORY, DATA_DIRECTORY, REPLACE_FILE_ON_DEL, LEAVE_IN_PEACE, SOFT_MOVE_FILES},
-    encrypt::{encrypt, decrypt, create_key, create_hash}
+        COMMON_KEY_DIRECTORY, USER_KEY_LOCATION, SECRET_MAP_DIRECTORY, DATA_DIRECTORY, LEAVE_IN_PEACE, STREAMING_BUFFER_SIZE},
+    encrypt::{encrypt, decrypt, create_key, create_hash},
 };
 
 // pbkdf parameters
@@ -32,108 +33,12 @@ pub fn version() {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct SecretDataIndex {
-    version:        String,
-    name:           String,
-    owner:          String,
-    key:            u32,
-    unique_id:      String,
-    file_path:      String,
-    secret_path:    String,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
 struct KeyIndex {
     hash:       String,
     parent:     String, // Default master or userkey
     location:   String,
     version:    String,
     key:        u32,
-}
-
-fn timestamp() -> String {
-    // Getting the data 
-    let mut timestamp: String = String::new();
-    let current_time: DateTime<Local> = Local::now();
-
-    let day: u32 = current_time.day();
-    let month: u32 = current_time.month();
-    let year: i32 = current_time.year();
-    let hour: u32 = current_time.hour();
-    let minute: u32 = current_time.minute();
-    let second: u32 = current_time.second();
-
-    // adding foward 0 padding to dates
-    let year_string: String = year.to_string();
-
-    fn padding_date(number: u32) -> String {
-        if number < 10 {
-            let mut local_date_string = String::new();
-            local_date_string.push_str("0");
-            local_date_string.push_str(&number.to_string());
-            return local_date_string;
-
-        } else {
-            let local_date_string: String = String::from(&number.to_string());
-            return local_date_string;
-        }
-
-    }
-
-    timestamp.push_str(&year_string);
-    timestamp.push_str("-");
-    timestamp.push_str(&padding_date(month));
-    timestamp.push_str("-");
-    timestamp.push_str(&padding_date(day));
-    timestamp.push_str("_");
-    timestamp.push_str(&padding_date(hour));
-    timestamp.push_str("-");
-    timestamp.push_str(&padding_date(minute));
-    timestamp.push_str("-");
-    timestamp.push_str(&padding_date(second));
-
-    return timestamp;
-}
-
-fn start_log() {
-    let mut log_msg: String = String::new();
-    log_msg.push_str(" LOG START");
-    log_msg.push_str(" @ ");
-    log_msg.push_str(&timestamp());
-    log_msg.push_str("\n");
-    // write to log function
-
-    // if al old log exists delete it
-    if std::path::Path::new(config::LOG_FILE_LOCATION).exists() {
-        std::fs::remove_file(config::LOG_FILE_LOCATION).unwrap();
-      }
-      
-    // create new log file
-    let mut log_file = OpenOptions::new().create_new(true).write(true).append(true).open(config::LOG_FILE_LOCATION).expect("File could not be opened");
-
-    if let Err(_e) = writeln!(log_file, "{}", log_msg) {
-        halt("Could not create or write to new log file");
-    }
-
-    let msg: String = String::from("Log Created! \n");
-    system::output("GREEN", &msg);
-}
-
-pub fn append_log(data: &str) {
-    // Makign data
-    let mut log_msg: String = String::new();
-    log_msg.push_str(data);
-    log_msg.push_str(" @ ");
-    log_msg.push_str(&timestamp());
-    log_msg.push_str("\n");
-
-    // Opening the file
-    let mut log_file = OpenOptions::new().write(true).append(true).open(config::LOG_FILE_LOCATION).expect("File could not be opened");
-
-    // Hendeling errs
-    if let Err(_e) = writeln!(log_file, "{}", log_msg) {
-        warn("Couldn't open already existing log file");
-    }
 }
 
 pub fn generate_userkey() {
@@ -382,7 +287,7 @@ fn write_userkey_data(password: String) -> bool {
     let userkey = hex::encode(&password_key);
     let secret: String = "The hotdog man isn't real !?".to_string();
 
-    let ciphertext: String = encrypt(secret, userkey);
+    let ciphertext: String = encrypt(secret, userkey, 1024); // ! this will be static since key sizes are really small
 
     // write the cipher text to user key
 
@@ -551,24 +456,21 @@ pub fn fetch_key_data(key: String) -> String {
         output("RED", "Mismatched key version. The version of encore used to write this key");
         output("RED", "is not the same one reading it. \n");
         output("RED", "To solve this export your secrets and re initialize encore. \n");
-        halt("If you know what your doing you can use the debug '--carry-over-key X option' THIS MIGHT BREAK THINGS");
+        warn("If you know what your doing you can use the debug '--carry-over-key X option' THIS MIGHT BREAK THINGS");
     
     };
 
     // Reading the key data
     let mut location = File::open(numbered_key_map_data.location)
     .expect("I CAN'T OPEN THE FUCKING KEY WHAT DID YOU DO !>!>!>!");
-
     let mut key_data: String = String::new();
     
     location.read_to_string(&mut key_data).expect("Unable to read the file");
 
     // Creating new hash to check key integrity
-
     let checksum_string: String = create_hash(key_data.clone());
 
     // Verifying the check sum of the key data
-
     if numbered_key_map_data.hash != checksum_string {
         let mut log: String = String::new();
         log.push_str("KEY NUMBER ");
@@ -605,243 +507,18 @@ pub fn create_writing_key(key: String) -> String {
     return hex::encode(final_key);
 }
 
-pub fn write(filename: String, secret_owner: String, secret_name: String) -> bool {
-    // make something cool
-    output("GREEN", "Writing secret \n");
-    // creating the message to log
-    let mut msg: String = String::new();
-    msg.push_str("Attempting to encrypt '");
-    msg.push_str(&filename);
-    msg.push_str("'");
-    append_log(&msg);
-
-    // testing if the file exists
-    let filename_existence: bool = Path::new(&filename).exists();
-
-    if filename_existence {
-        // creating the secret json file 
-        let mut secret_map_path: String = String::new();
-        secret_map_path.push_str(SECRET_MAP_DIRECTORY);
-        secret_map_path.push_str("/");
-        secret_map_path.push_str(&secret_owner);
-        secret_map_path.push_str("-");
-        secret_map_path.push_str(&secret_name);
-        secret_map_path.push_str(".json");
-        // testing if the secret json exists before starting encryption
-        let secret_json_existence: bool = Path::new(&secret_map_path).exists();
-        if secret_json_existence {
-            warn("The owner, name combo exists");
-            return false
-        } else {
-            // using the rand crate pick a num between our range
-            let mut rng = rand::thread_rng();
-            let range = Uniform::new(KEY_GEN_LOWER_LIMIT, KEY_GEN_UPPER_LIMIT);
-            let key = range.sample(&mut rng);
-            // creating the rest of the struct data
-            let unique_id: String = truncate(&encode(create_hash(filename.clone())), 20).to_string();
-            let canon_path = canonicalize(&filename).expect("path doesn't exist").display().to_string();
-            // create the secret path
-            let mut secret_path = String::new();
-            secret_path.push_str(DATA_DIRECTORY);
-            secret_path.push_str("/");
-            secret_path.push_str(&unique_id);
-            // Creating the struct
-            let secret_data_map: SecretDataIndex = SecretDataIndex {
-                version: String::from(VERSION),
-                name: String::from(&secret_name),
-                owner: String::from(&secret_owner),
-                key: key,
-                unique_id: unique_id,
-                file_path: canon_path,
-                secret_path: secret_path.clone(),
-                
-            };
-
-            // formatting the json data
-            let pretty_secret_data_map = serde_json::to_string_pretty(&secret_data_map).unwrap();
-            let cipher_secret_data_map = encrypt(pretty_secret_data_map, fetch_key_data("systemkey".to_string()));
-            // wait the write this data till the file has been encrypted
-
-            // this reads the entire file into a buffer
-            let file = File::open(filename);
-            let mut buffer = Vec::new();
-            file.expect("couldn't open the file").read_to_end(&mut buffer).expect("wait can you do this");
-
-            // encrypting the file
-            let plain_file = hex::encode(buffer);
-            let secret_data = encrypt(plain_file, create_writing_key(key.to_string()));
-
-            // create file or die
-            let mut paths = vec![];
-            paths.insert(0, secret_map_path.clone());
-            paths.insert(1, secret_path.clone());
-
-            for path in paths.iter() {
-                if std::path::Path::new(&path).exists() {
-                    append_log("Files exist with the the same unique ids this is most likely a collision consider changing file names and trying again");
-                    halt("UNCLEAN ENV CHECK LOG");
-                }
-            }
-            // writting to secret data
-            let mut secret_file = OpenOptions::new()
-            .create_new(true)
-            .write(true)
-            .append(true)
-            .open(secret_path)
-            .expect("File could not written to");
-
-            if let Err(_) = write!(secret_file, "{}", secret_data) {
-                halt(&"Could't write the encrypted data");
-            }
-
-            // writting to secret data json file
-            let mut secret_map_file = OpenOptions::new()
-            .create_new(true)
-            .write(true)
-            .append(true)
-            .open(secret_map_path)
-            .expect("File could not written to");
-
-            if let Err(_) = write!(secret_map_file, "{}", cipher_secret_data_map) {
-                halt(&"Could't write the encrypted data");
-            }
-        
-            // after everything has been written we can delete the file 
-            if !SOFT_MOVE_FILES {
-                std::fs::remove_file(secret_data_map.file_path).unwrap();
-            }
-        }
-
-        return true
-
-    } else {
-        notice(&filename);
-        warn("File doesn't exist");
-        return false
-    }
-
-    // why is this needed ???
-    // ! Rewrite the if contitional because this should be inaccessible
-    // return true
-} 
-
-pub fn read(secret_owner: String, secret_name: String) -> bool {
-    // creating the secret json file 
-    append_log("Decrypting request");
-    let mut secret_map_path: String = String::new();
-    secret_map_path.push_str(SECRET_MAP_DIRECTORY);
-    secret_map_path.push_str("/");
-    secret_map_path.push_str(&secret_owner);
-    secret_map_path.push_str("-");
-    secret_map_path.push_str(&secret_name);
-    secret_map_path.push_str(".json");
-    // testing if the secret json exists before starting encryption
-    let secret_json_existence: bool = Path::new(&secret_map_path).exists();
-    if secret_json_existence {
-        let cipher_map_data = read_to_string(secret_map_path).expect("Couldn't read the json file");        
-        let secret_map_data = decrypt(cipher_map_data, fetch_key_data("systemkey".to_string()));
-
-        let secret_map: SecretDataIndex = serde_json::from_str(&secret_map_data).unwrap();
-
-        // checking data version 
-        if secret_map.version != VERSION {
-            halt("DATA VERSION MISMATCHED. If you know what your doing use the debug commands");
-        }
-        
-        // ensure the data is there
-        if !std::path::Path::new(&secret_map.secret_path).exists() {
-            halt("THE DATA FILE SPECIFIED DOES NOT EXIST");
-        }
-
-        // generating the secret key for the file
-        let writting_key: String = create_writing_key(secret_map.key.to_string());
-
-        // reading data to file 
-        let cipher_file_data: String = read_to_string(secret_map.secret_path).expect("Couldn't read the cipher file");        
-        // decrypting the data 
-        let plain_hex_file_data: String = decrypt(cipher_file_data, writting_key);
-        let plain_file_data = hex::decode(plain_hex_file_data).expect("Data couldn't be read");
-
-        if REPLACE_FILE_ON_DEL {
-            // TODO add a warning and a contition if the file exists
-            let mut plain_file = OpenOptions::new()
-            .create_new(true)
-            .write(true)
-            .append(true)
-            .open(secret_map.file_path)
-            .expect("File could not written to");
-            
-            plain_file.write_all(&plain_file_data).expect("failed writing to the path given");
-        } else {
-            let mut path: String = String::new();
-            path.push_str(&secret_map.unique_id);
-            path.push_str(".dec");
-
-            let mut plain_file = OpenOptions::new()
-            .create_new(true)
-            .write(true)
-            .append(true)
-            .open(path)
-            .expect("File could not written to");
-            
-            plain_file.write_all(&plain_file_data).expect("failed writing to the path given");
-        }
-
-        return true
-    } else {
-        warn("The secret map doen't exist");
-        return false
-    }
-}
-
-pub fn destroy(secret_owner: String, secret_name: String) -> bool {
-    // creating the secret json file 
-    append_log("Forgetting secret");
-    let mut secret_map_path: String = String::new();
-    secret_map_path.push_str(SECRET_MAP_DIRECTORY);
-    secret_map_path.push_str("/");
-    secret_map_path.push_str(&secret_owner);
-    secret_map_path.push_str("-");
-    secret_map_path.push_str(&secret_name);
-    secret_map_path.push_str(".json");
-    // testing if the secret json exists before starting encryption
-    let secret_json_existence: bool = Path::new(&secret_map_path).exists();
-    if secret_json_existence {
-         let cipher_map_data = read_to_string(secret_map_path.clone()).expect("Couldn't read the json file");        
-         let secret_map_data = decrypt(cipher_map_data, fetch_key_data("systemkey".to_string()));
-         let secret_map: SecretDataIndex = serde_json::from_str(&secret_map_data).unwrap();
-         // the config 
-         if LEAVE_IN_PEACE {
-             if read(secret_owner, secret_name) { warn("File read before deleting"); }
-             
-             // deleted secret data 
-             if std::path::Path::new(&secret_map.secret_path).exists() {
-                 std::fs::remove_file(&secret_map.secret_path).unwrap();
-             }
-             std::fs::remove_file(&secret_map_path).unwrap();
-         } else {
-             // deleted secret data 
-             if std::path::Path::new(&secret_map.secret_path).exists() {
-                 std::fs::remove_file(&secret_map.secret_path).unwrap();
-             }
-             std::fs::remove_file(&secret_map_path).unwrap();
-         }
-         return true
-    } else {
-        return false
-    }
-}
 // TODO add some debugging tools
 fn make_folders() {
     output("GREEN", "Making directories \n");
-    create_dir_all("/var/encore").expect("making folders failed");
+    // ! change this when done
+    create_dir_all("/var/encore").expect("making folders failed"); // make this dynamic
 
     let mut paths = vec![];
     paths.insert(0, DATA_DIRECTORY);
     paths.insert(1, PUBLIC_MAP_DIRECTORY);
     paths.insert(2, SECRET_MAP_DIRECTORY);
     paths.insert(3, COMMON_KEY_DIRECTORY);
-    paths.insert(4, "/var/log/encore");
+    // paths.insert(4, "/var/log/encore");
 
     for path in paths.iter() {
         if std::path::Path::new(&path).exists() {
@@ -850,6 +527,29 @@ fn make_folders() {
         }
     }
 }
+
+// function for calculating usable ram for the array size
+pub fn calc_buffer() -> usize {
+    let mut system = System::new_all();
+    system.refresh_all();
+
+    let used_ram = system.used_memory();
+    let total_ram = system.total_memory();
+
+    let free_ram: u64 = total_ram - used_ram; // the buffer is only a few Mbs
+    
+    let available_ram: f64 = free_ram as f64; //
+
+    // add more memory checks
+    let buffer_size: f64 = if available_ram <= STREAMING_BUFFER_SIZE as f64 {
+        STREAMING_BUFFER_SIZE - 5120.00
+    } else {
+        STREAMING_BUFFER_SIZE + 5120.00 // ! should be buff size plus some divison of free space
+    };
+
+    return buffer_size as usize; // number of bytess
+}
+
 
 pub fn show_help() {
     notice(HELP);

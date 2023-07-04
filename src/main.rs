@@ -1,15 +1,19 @@
 mod functions;
 #[path = "system/system.rs"] mod system;
 #[path = "system/encrypt.rs"] mod encrypt;
+#[path = "system/encrypt_functions.rs"] mod encrypt_functions;
 
 use crate::{
-    system::{halt, notice, warn, pass, min_arguments, fetch_arguments, HELP}, 
-    functions::{append_log, show_help, version, initialize, create_writing_key, write, read, destroy}, 
-    encrypt::{encrypt, decrypt}
+    system::{halt, notice, warn, pass, min_arguments, fetch_arguments, HELP, append_log}, 
+    functions::{show_help, version, initialize}, 
+    encrypt_functions::{write, read, forget}
 };
 
+// use std::env;
 
 fn main() {
+    // ? SHOW ME THE STACK !
+    // env::set_var("RUST_BACKTRACE", "1");
     // Creating a basic input phraser 
     let arguments_array: Vec<_> = fetch_arguments();
     if min_arguments(1){
@@ -50,15 +54,31 @@ fn main() {
                 }
             }
             "--debug" => {
-                // let writing_key = create_writing_key("KLw6NY7i07gM8CxUYE06ywDI8baCG6JR".to_string());
-                // notice(&writing_key);
+                let arg_2: &str = &arguments_array[2];
+                // proceed to the cases
+                match arg_2 {
 
-                notice(&encrypt("This is data".to_string(), "KLw6NY7i07gM8CxUYE06ywDI8baCG6JR".to_string()));
-                pass(&decrypt("cbf0cc5c716d86119b0aac18285f9526j5szHkcYQ0GQVZJR703cb86625c7362f23ee57f2952994d7c8988a1904965b7b3086edd61a75b6ce".to_string(), "KLw6NY7i07gM8CxUYE06ywDI8baCG6JR".to_string()));
+                    "--write" => {
+                        let filename = String::from(&arguments_array[3]);
+                        let secret_owner = String::from(&arguments_array[4]);
+                        let secret_name = String::from(&arguments_array[5]);
+                        
+                        if write(filename, secret_owner, secret_name) {
+                            pass("\n Done ");
+                        }
+                    }
 
-                warn("making a  randon writing key");
-                warn(&create_writing_key("22".to_string()));
-                
+                    "--read" => {
+                        let secret_owner = String::from(&arguments_array[3]);
+                        let secret_name = String::from(&arguments_array[4]);
+
+                        read(secret_owner, secret_name); 
+                    }
+
+                    _ => {
+                        notice(HELP);
+                    }
+                }
                 append_log(" DEBUG DUMP");
                 notice("End debug");
             }
@@ -67,7 +87,7 @@ fn main() {
                     let secret_owner = String::from(&arguments_array[2]);
                     let secret_name = String::from(&arguments_array[3]);
                     
-                    if !destroy(secret_owner, secret_name) { halt("An error occoured while forgetting secret"); };
+                    if !forget(secret_owner, secret_name) { halt("An error occoured while forgetting secret"); };
                 } else {
                     halt("Need two arguments 1 given");
                 }
