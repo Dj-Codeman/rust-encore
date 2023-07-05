@@ -99,5 +99,5 @@ pub const LEAVE_IN_PEACE: bool = false;
 	// THIS IS LESS SECURE BECAUSE THE KEY IS TECHNICALLY STORED ON THE MACHINE
 
 // TODO use this somewhere
-pub const _USE_PRE_DEFINED_USERKEY: bool = true;
+pub const USE_PRE_DEFINED_USERKEY: bool = true;
 pub const PRE_DEFINED_USERKEY: &str = "Secret1!";

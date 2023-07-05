@@ -1,14 +1,14 @@
 use hex;
 use serde::{Serialize, Deserialize};
 use std::{io::{Write, prelude::* }, fs::{OpenOptions, File }, str};
-// use rpassword::read_password; // ! will be introduced later
+use rpassword::read_password;
 use ring::pbkdf2;
 
 
 use crate::{
     system::{output, halt, warn, notice, VERSION, append_log, unexist}, 
     config::{KEY_GEN_UPPER_LIMIT, KEY_GEN_LOWER_LIMIT, PRE_DEFINED_USERKEY, PUBLIC_MAP_DIRECTORY, SYSTEM_KEY_LOCATION,
-        COMMON_KEY_DIRECTORY, USER_KEY_LOCATION},
+        COMMON_KEY_DIRECTORY, USER_KEY_LOCATION, USE_PRE_DEFINED_USERKEY},
     encrypt::{encrypt, decrypt, create_key, create_hash},
 };
 
@@ -37,14 +37,22 @@ pub fn generate_user_key() -> bool {
     let iteration = std::num::NonZeroU32::new(u32::from(num)).unwrap();
     let mut password_key = [0; 16]; // Setting the key size
 
-    pbkdf2::derive(PBKDF2_ALG, iteration, salt.as_bytes(),
-    PRE_DEFINED_USERKEY.as_bytes(), &mut password_key);
+    if USE_PRE_DEFINED_USERKEY {
+        pbkdf2::derive(PBKDF2_ALG, iteration, salt.as_bytes(),
+        PRE_DEFINED_USERKEY.as_bytes(), &mut password_key);
+    } else {
+        notice("Please choose writing password");
+        let password = read_password().unwrap();
+        pbkdf2::derive(PBKDF2_ALG, iteration, salt.as_bytes(),
+        &password.as_bytes(), &mut password_key);
+    }
 
     let userkey = hex::encode(&password_key);
     // * creating the integrity file 
 
     let secret: String = "The hotdog man isn't real !?".to_string();
-    let cipher_integrity: String = encrypt(secret, userkey, 1024); // ! this will be static since key sizes are really small
+    let cipher_integrity: String = encrypt(secret, userkey, 1024); 
+    // ! ^ this will be static since key sizes are really small
 
     unexist(&USER_KEY_LOCATION);
 
@@ -310,7 +318,7 @@ pub fn fetch_key_data(key: String) -> String {
         output("RED", "Mismatched key version. The version of encore used to write this key");
         output("RED", "is not the same one reading it. \n");
         output("RED", "To solve this export your secrets and re initialize encore. \n");
-        warn("If you know what your doing you can use the debug '--carry-over-key X option' THIS MIGHT BREAK THINGS");
+        halt("If you know what your doing you can use the debug '--carry-over-key X option' THIS MIGHT BREAK THINGS");
     
     };
 

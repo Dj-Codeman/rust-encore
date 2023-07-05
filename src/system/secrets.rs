@@ -103,12 +103,14 @@ pub fn write(filename: String, secret_owner: String, secret_name: String) -> boo
             full_file_hash,
             
         };
+
         // formatting the json data
         let pretty_data_map = serde_json::to_string_pretty(&secret_data_struct).unwrap();
         let cipher_data_map = encrypt(pretty_data_map, fetch_key_data("systemkey".to_string()), 1024); // ! system files like keys and maps are set to 1024 for buffer to make reading simple
 
         // this reads the entire file into a buffer
         let mut file = File::open(filename).unwrap(); 
+
         // defining the initial pointer range and sig chunk            
         let mut buffer: Vec<u8> = vec![0; buffer_size];
         let mut encoded_buffer = String::new();
@@ -141,7 +143,6 @@ pub fn write(filename: String, secret_owner: String, secret_name: String) -> boo
             match file.read_exact(&mut buffer) {
                 Ok(_) => {
                     for data in buffer.iter() {
-                        // encoded_buffer += &format!("{:02X}", data);
                         encoded_buffer += &format!("{:02X}", data);
                     }
                     // create chunk signature
@@ -169,7 +170,7 @@ pub fn write(filename: String, secret_owner: String, secret_name: String) -> boo
                         halt(&"Could't write the encrypted data");
                     }
 
-                    // ! DONE RUN THE NEXT CHUNK
+                    // * DONE RUN THE NEXT CHUNK */
                 }
                 Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
                     // reached end of file
@@ -271,7 +272,6 @@ pub fn read(secret_owner: String, secret_name: String) -> bool {
         let mut encoded_buffer: String = String::new(); // decrypted hex encoded data
         let mut signature: String = String::new(); // the decoded signature
 
-
         // * checking if its safe to make the file
         let is_file: bool = std::path::Path::new(&secret_map.file_path).exists();
         if is_file == true { halt("The file requested already exists"); }
@@ -286,7 +286,7 @@ pub fn read(secret_owner: String, secret_name: String) -> bool {
         // ! reading the chunks 
         loop {
             // Setting the pointer and cursors before the read
-            file.seek(SeekFrom::Start(range_start as u64)).expect("fuck");
+            file.seek(SeekFrom::Start(range_start as u64)).expect("Failed to set seek head");
 
             // ! handeling the file reading and outputs
             match file.read_exact(&mut buffer) {
@@ -324,7 +324,7 @@ pub fn read(secret_owner: String, secret_name: String) -> bool {
             let sig_version = truncate(&signature[2..], 6);
             if sig_version != VERSION {
                 output("RED", "The signature indicates that a diffrent version of encore was used for this file");
-                warn("Will try to proceed, roll back may be needed");
+                warn("Will try to proceed, older version of encore may be needed");
             }
 
             let sig_hash = truncate(&signature[9..], 20);
@@ -337,14 +337,13 @@ pub fn read(secret_owner: String, secret_name: String) -> bool {
             let sig_count_data = &signature[30..];
             let sig_count = sig_count_data.parse::<usize>().unwrap();
             if sig_count != signature_count {
-                warn("Signature count is mis-aligned");
+                halt("Signature count is mis-aligned");
             }
             
             // ? unencoding buffer
             let plain_result: Vec<u8> = hex::decode(&encoded_buffer).expect("Can't decode the string"); // encoding needs to be diffrent
 
             // ? appending on decode
-
             match plain_file.write_all(&plain_result){
                 Ok(_) => output("BLUE", "."),
                 Err(_) => panic!("Error while writing to file"),
@@ -376,9 +375,9 @@ pub fn forget(secret_owner: String, secret_name: String) -> bool {
     secret_map_path.push_str("-");
     secret_map_path.push_str(&secret_name);
     secret_map_path.push_str(".json");
+
     // testing if the secret json exists before starting encryption
-    let secret_json_existence: bool = Path::new(&secret_map_path).exists();
-    if secret_json_existence {
+    if Path::new(&secret_map_path).exists() {
         let cipher_map_data = read_to_string(secret_map_path.clone()).expect("Couldn't read the json file");        
         let secret_map_data = decrypt(cipher_map_data, fetch_key_data("systemkey".to_string()));
         let secret_map: SecretDataIndex = serde_json::from_str(&secret_map_data).unwrap();
@@ -399,6 +398,7 @@ pub fn forget(secret_owner: String, secret_name: String) -> bool {
             std::fs::remove_file(&secret_map_path).unwrap();
         }
         return true
+
     } else {
         return false
     }

@@ -82,9 +82,6 @@ pub fn decrypt(cipherdata: String, key: String) -> String {
     //cipherdata legnth minus the hmac because its appened later
     let cipherdata_len: usize = cipherdata.len() - 64;
 
-    // warn(&String::from(cipherdata_len.to_string()));
-    // dump(&cipherdata);
-
     // removed the hmac from the cipher string to generate the new hmac 
     let cipherdata_hmacless: String = truncate( &cipherdata, cipherdata_len).to_string();
 
@@ -93,7 +90,6 @@ pub fn decrypt(cipherdata: String, key: String) -> String {
     let new_hmac: String = create_hmac(cipherdata_hmacless.clone());
 
     // verifing hmac
-
     if old_hmac == new_hmac {
         // pulling the iv 
         let initial_vector: &str = cipherdata.substring(cipherdata_len-16, cipherdata_len);
@@ -119,7 +115,6 @@ pub fn decrypt(cipherdata: String, key: String) -> String {
 
 fn create_hmac(cipherdata: String) -> String {
     // create hmac
-    // make alias
     type HmacSha256 = Hmac<Sha256>;
 
     // when the hmac is verified we check aginst the systemkey
