@@ -1,31 +1,28 @@
-mod system;
-mod config;
-mod encrypt;
-
 use hex::encode;
-// use substring::Substring; might need for reading
 use rand::distributions::{Distribution, Uniform};
 use serde::{Serialize, Deserialize};
 use std::{
     io::{Write, SeekFrom, prelude::*}, 
     fs::{metadata, OpenOptions, File, canonicalize, read_to_string}, 
     path::Path
-    };
+};
 
-// my junk
-use self::{
+// self and create are user made code
+use crate::{
     system::{halt, truncate, warn, notice, output, append_log, VERSION}, 
     encrypt::{encrypt, decrypt, create_hash},
     config::{KEY_GEN_UPPER_LIMIT, KEY_GEN_LOWER_LIMIT,
-        SECRET_MAP_DIRECTORY, DATA_DIRECTORY, SOFT_MOVE_FILES, LEAVE_IN_PEACE},
+        SECRET_MAP_DIRECTORY, DATA_DIRECTORY, SOFT_MOVE_FILES, LEAVE_IN_PEACE,
+        },
 };
 
 use crate::{
-    functions::{fetch_key_data, calc_buffer, create_writing_key}
+    auth::{fetch_key_data, create_writing_key},
+    local_env::calc_buffer
 };
 
+// ! This is the struct for all secrets CHANGE WITH CARE
 #[derive(Serialize, Deserialize, Debug)]
-// the updated robust struct 
 struct SecretDataIndex {
     version:        String,
     name:           String,
@@ -36,26 +33,22 @@ struct SecretDataIndex {
     secret_path:    String,
     buffer_size:    usize,
     chunk_count:    usize,
-    total_hash:     String,
+    full_file_hash:     String,
 }
 
-#[allow(dead_code)]
 pub fn write(filename: String, secret_owner: String, secret_name: String) -> bool {
     
-    // ? Calculating buffer size 
+    //TODO Dep or simplyfy
     let max_buffer_size = calc_buffer();
     let file_size = metadata(filename.clone()).expect("an unknown error occoured").len();
-
     let fit_buffer: usize = (file_size / 4).try_into().unwrap();
-
     let buffer_size: usize = if fit_buffer <= max_buffer_size {
         fit_buffer
     } else {
         fit_buffer / 4
     };
 
-    output("GREEN", "Writing secret \n");
-    // creating the message to log
+    output("GREEN", "Creating new secret \n");
     let mut msg: String = String::new();
     msg.push_str("Attempting to encrypt '");
     msg.push_str(&filename);
@@ -89,14 +82,15 @@ pub fn write(filename: String, secret_owner: String, secret_name: String) -> boo
         secret_path.push_str(DATA_DIRECTORY);
         secret_path.push_str("/");
         secret_path.push_str(&unique_id);
+        secret_path.push_str(".res"); // rust encode secret
 
         // Determining chunk amount and size 
         let chunk_count: usize = file_size as usize / buffer_size;
         // make a hash 
-        let total_hash: String = create_hash(filename.clone());
+        let full_file_hash: String = create_hash(filename.clone());
 
         // Creating the struct
-        let secret_data_map: SecretDataIndex = SecretDataIndex {
+        let secret_data_struct: SecretDataIndex = SecretDataIndex {
             version: String::from(VERSION),
             name: String::from(&secret_name),
             owner: String::from(&secret_owner),
@@ -106,15 +100,15 @@ pub fn write(filename: String, secret_owner: String, secret_name: String) -> boo
             secret_path: secret_path.clone(),
             buffer_size: buffer_size as usize,
             chunk_count,
-            total_hash,
+            full_file_hash,
             
         };
         // formatting the json data
-        let pretty_secret_data_map = serde_json::to_string_pretty(&secret_data_map).unwrap();
-        let cipher_secret_data_map = encrypt(pretty_secret_data_map, fetch_key_data("systemkey".to_string()), 1024); // ! system files like keys and maps are set to 1024 for buffer to make reading simpeler
+        let pretty_data_map = serde_json::to_string_pretty(&secret_data_struct).unwrap();
+        let cipher_data_map = encrypt(pretty_data_map, fetch_key_data("systemkey".to_string()), 1024); // ! system files like keys and maps are set to 1024 for buffer to make reading simple
 
         // this reads the entire file into a buffer
-        let mut file = File::open(filename).unwrap();
+        let mut file = File::open(filename).unwrap(); 
         // defining the initial pointer range and sig chunk            
         let mut buffer: Vec<u8> = vec![0; buffer_size];
         let mut encoded_buffer = String::new();
@@ -122,42 +116,41 @@ pub fn write(filename: String, secret_owner: String, secret_name: String) -> boo
         let mut range_start: u64 = 0;
         let mut range_end: u64 = buffer_size as u64;
 
-        // ! Opening the file to allow chunks to be appened
+        // ! making the secret path to append data too
         let mut secret_file = OpenOptions::new()
         .create_new(true)
         .write(true)
         .append(true)
         .open(secret_path.clone());
 
-        // TODO ERROR HANDELING
         match secret_file {
             Ok(_) => append_log("new secret file created"),
             Err(ref e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
                 append_log("secret file id already exists");
-                halt("Please check log");
+                halt("Error while writing please check log");
             },
-            Err(_) => halt(""),
+            Err(_) => halt("An error occoured"),
         }
 
         // ! reading the chunks 
         loop {
             let _range_len = range_end - range_start; // ? maybe store this to make reading simpeler
             // Setting the pointer and cursors before the read
-            file.seek(SeekFrom::Start(range_start as u64)).expect("fuck");
+            file.seek(SeekFrom::Start(range_start as u64)).expect("Failed to set seak head");
     
             match file.read_exact(&mut buffer) {
                 Ok(_) => {
-                    for byte in buffer.iter() {
-                        // encoded_buffer += &format!("{:02X}", byte);
-                        encoded_buffer += &format!("{:02X}", byte);
+                    for data in buffer.iter() {
+                        // encoded_buffer += &format!("{:02X}", data);
+                        encoded_buffer += &format!("{:02X}", data);
                     }
                     // create chunk signature
                     let mut sig_data: String = String::new();
-                    sig_data.push_str(&signature_count.to_string().len().to_string());
+                    sig_data.push_str(&signature_count.to_string().len().to_string()); //* This defines the signature size for readback */
                     sig_data.push_str("-");
                     sig_data.push_str(VERSION);
                     sig_data.push_str("-");
-                    sig_data.push_str(&truncate(&create_hash(encoded_buffer.clone()), 20).to_string()); //? give this meaning ? why not
+                    sig_data.push_str(&truncate(&create_hash(encoded_buffer.clone()), 20).to_string()); 
                     sig_data.push_str("-");
                     sig_data.push_str(&signature_count.to_string());
     
@@ -212,20 +205,20 @@ pub fn write(filename: String, secret_owner: String, secret_name: String) -> boo
             Err(_) => halt(""),
         }
 
-        if let Err(_) = write!(secret_map_file.as_mut().expect("Something went wrong"), "{}", cipher_secret_data_map) {
+        if let Err(_) = write!(secret_map_file.as_mut().expect("Something went wrong"), "{}", cipher_data_map) {
             halt(&"Could't write the encrypted data");
         }
     
         // after everything has been written we can delete the file 
         if !SOFT_MOVE_FILES {
-            std::fs::remove_file(secret_data_map.file_path).unwrap();
+            std::fs::remove_file(secret_data_struct.file_path).unwrap();
         }
         return true
 
     } else {
         notice(&filename);
         warn("File doesn't exist");
-        return false
+        return false;
     }
 }
 
@@ -248,7 +241,7 @@ pub fn read(secret_owner: String, secret_name: String) -> bool {
 
         // ! Validating that we can mess with this data
         if secret_map.version != VERSION {
-            halt("DATA VERSION MISMATCHED. If you know what your doing use the debug commands");
+            warn("Warning, The version of encore used to write this is out of date");
         }
 
         // ensure the data is there
@@ -264,7 +257,6 @@ pub fn read(secret_owner: String, secret_name: String) -> bool {
         let secret_size: usize = metadata(secret_map.secret_path.clone()).expect("an unknown error occoured").len() as usize;
         let secret_divisor: usize = secret_map.chunk_count as usize;
         let new_buffer_size: usize = secret_size / secret_divisor; 
-        // halt(&new_buffer_size.to_string());
 
         // Defing the loop to read the encrypted file
         let mut file = File::open(secret_map.secret_path.clone()).unwrap();
@@ -280,21 +272,16 @@ pub fn read(secret_owner: String, secret_name: String) -> bool {
         let mut signature: String = String::new(); // the decoded signature
 
 
-        // ? Printing the buffer to the file
+        // * checking if its safe to make the file
+        let is_file: bool = std::path::Path::new(&secret_map.file_path).exists();
+        if is_file == true { halt("The file requested already exists"); }
+        
         let mut plain_file = OpenOptions::new()
         .create_new(true)
         .write(true)
         .append(true)
-        .open(secret_map.file_path.clone());
-
-        // TODO ERROR HANDELING
-        match plain_file {
-            Ok(_) => append_log("plain file created"),
-            Err(ref e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
-                halt("plain file id already exists");
-            },
-            Err(_) => halt(""),
-        }
+        .open(&secret_map.file_path)
+        .expect("Could not create the new file");
 
         // ! reading the chunks 
         loop {
@@ -313,10 +300,10 @@ pub fn read(secret_owner: String, secret_name: String) -> bool {
                     let encoded_signature: String = truncate(&secret_buffer, 62).to_string();
                     let cipher_buffer: String = secret_buffer[62..].to_string();
                     
-                    // ! decrypting the chunk 
+                    // * decrypting the chunk 
                     encoded_buffer += &decrypt(cipher_buffer.clone(), writting_key.clone());
 
-                    // ! handeling decoding the signature 
+                    // * handeling decoding the signature 
                     let signature_data = String::from_utf8(hex::decode(encoded_signature).expect("Signature could not be decoded"));
                     
                     match signature_data {
@@ -330,13 +317,14 @@ pub fn read(secret_owner: String, secret_name: String) -> bool {
                 Err(_e) => halt("add the break con back here"),
             }
 
+            // ! After 9 chuncks an HMAC error is thrown because the sig size is not updated
             // !? Verify the signature integrity 
             let _sig_digit_count = truncate(&signature, 1); // remember it exists
 
             let sig_version = truncate(&signature[2..], 6);
             if sig_version != VERSION {
                 output("RED", "The signature indicates that a diffrent version of encore was used for this file");
-                halt("Can't proceed");
+                warn("Will try to proceed, roll back may be needed");
             }
 
             let sig_hash = truncate(&signature[9..], 20);
@@ -351,18 +339,16 @@ pub fn read(secret_owner: String, secret_name: String) -> bool {
             if sig_count != signature_count {
                 warn("Signature count is mis-aligned");
             }
-
+            
             // ? unencoding buffer
-            let mut plain_buffer = String::new();
-            let plain_result = String::from_utf8(hex::decode(encoded_buffer).expect("Signature could not be decoded")); // encoding needs to be diffrent
-                    
-            match plain_result {
-                Ok(string) => plain_buffer += &string,
-                Err(e) => println!("Invalid signature: {}", e),
-            }
+            let plain_result: Vec<u8> = hex::decode(&encoded_buffer).expect("Can't decode the string"); // encoding needs to be diffrent
 
-            // ? pushing to file
-            write!(plain_file.as_mut().expect("Something went wrong"), "{}", plain_buffer).expect("Couldn't append data to file");
+            // ? appending on decode
+
+            match plain_file.write_all(&plain_result){
+                Ok(_) => output("BLUE", "."),
+                Err(_) => panic!("Error while writing to file"),
+            }
 
             //? updating the pointers and the buffer
             range_start = range_end.clone();

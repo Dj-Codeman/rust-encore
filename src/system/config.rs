@@ -67,7 +67,7 @@ pub const KEY_GEN_LOWER_LIMIT: u32 = 0;
 	// dynamiclly allocated write should have this functionallity built in too 
 	// 1Mb 
 
-pub const STREAMING_BUFFER_SIZE: f64 = 51200.00;
+pub const STREAMING_BUFFER_SIZE: f64 = 102400.00;
 
 	//  soft moving
 	//  set 1 to use cp instead of mv when gatheing files to encrypt
@@ -82,7 +82,8 @@ pub const SOFT_MOVE_FILES: bool = false;
 	//  default= true
 
 
-pub const REPLACE_FILE_ON_DEL: bool = true;
+// ! safe to dep ?
+pub const _REPLACE_FILE_ON_DEL: bool = true;
 
 	//  save on destroy
 	//  if you want the destroy function to recover the file before deleting
@@ -97,5 +98,6 @@ pub const LEAVE_IN_PEACE: bool = false;
 	// be skipped by defining a a secret value here 
 	// THIS IS LESS SECURE BECAUSE THE KEY IS TECHNICALLY STORED ON THE MACHINE
 
-pub const USE_PRE_DEFINED_USERKEY: bool = true;
+// TODO use this somewhere
+pub const _USE_PRE_DEFINED_USERKEY: bool = true;
 pub const PRE_DEFINED_USERKEY: &str = "Secret1!";

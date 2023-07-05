@@ -1,21 +1,26 @@
-mod functions;
 #[path = "system/system.rs"] mod system;
 #[path = "system/encrypt.rs"] mod encrypt;
-#[path = "system/encrypt_functions.rs"] mod encrypt_functions;
+#[path = "system/secrets.rs"] mod secret;
+#[path = "system/config.rs"] mod config;
+#[path = "auth.rs"] mod auth;
+#[path = "enviornment.rs"] mod local_env;
 
 use crate::{
     system::{halt, notice, warn, pass, min_arguments, fetch_arguments, HELP, append_log}, 
-    functions::{show_help, version, initialize}, 
-    encrypt_functions::{write, read, forget}
+    secret::{write, read, forget},
+    local_env::{show_help, version, initialize},
 };
 
-// use std::env;
+// !? Allow this as a toggle flag later
+fn _check_debug() {
+    use std::env;
+    env::set_var("RUST_BACKTRACE", "1");
+}
 
 fn main() {
     // ? SHOW ME THE STACK !
-    // env::set_var("RUST_BACKTRACE", "1");
-    // Creating a basic input phraser 
     let arguments_array: Vec<_> = fetch_arguments();
+
     if min_arguments(1){
 
         let arg_1: &str = &arguments_array[1];
@@ -44,7 +49,7 @@ fn main() {
                     let secret_name = String::from(&arguments_array[3]);
 
                     if read(secret_owner, secret_name) {
-                        pass("DONE");
+                        pass("\nDONE");
                     } else {
                         halt("Reading FAILED");
                     }

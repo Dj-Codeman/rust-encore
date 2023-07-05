@@ -1,9 +1,6 @@
-#[path = "config.rs"] mod config;
-#[path = "encrypt.rs"] mod encrypt;
-
 use chrono::{Datelike, DateTime, Timelike, Local};
 use std::{io::Write, fs::OpenOptions, str};
-use self::config::LOG_FILE_LOCATION;
+use crate::config::LOG_FILE_LOCATION;
 
 // Defining terminal colors
 const COLOR_BLACK:  &str = "\u{001b}[30m"; // Terminals are black why output black ???
@@ -15,17 +12,14 @@ const COLOR_BOLD:   &str = "\x1B[1m";
 const COLOR_RESET:  &str = "\u{001b}[0m";
 
 // Defining version number
-#[allow(dead_code)]
-pub const VERSION: &str = "R1.0.1";  // ! R1.1.0 Changing the encoding from utf8
+pub const VERSION: &str = "R1.1.0";  // ! R1.1.0 Changing the encoding from utf8
 
 // Defining static content
-#[allow(dead_code)]
 pub const HELP: &str = "\nencore [--write] encrypt new object [--read] decrypt object [--forget] delete a stored object 
 \nencore [--test] system tests (for important builds) [--initialize] recreates keys and deletes data
 \nencore [--version] Prints the current version of encore.
 \nFor more help try encore --help --write or encore --help --read !!!\n";
 
-#[allow(dead_code)]
 pub fn output(color: &str, text: &str) {
 
     match color {
@@ -57,13 +51,11 @@ pub fn output(color: &str, text: &str) {
     }
 }
 
-#[allow(dead_code)]
 pub fn pass(text: &str) {
     println!("{}{}{}! {}", COLOR_BOLD, COLOR_GREEN, text, COLOR_RESET);
     std::process::exit(0);
 }
 
-#[allow(dead_code)]
 pub fn notice(text: &str) {
     println!("{}{}Notice: {}! {}", COLOR_BOLD, COLOR_BLUE, text, COLOR_RESET);
 }
@@ -77,15 +69,15 @@ pub fn halt(text: &str) {
     std::process::exit(1);
 }
 
-#[allow(dead_code)]
-pub fn dump(text: &str) {
+// * for debugging only
+pub fn _dump(text: &str) {
     println!("{}{}DUMPED: {}! {}", COLOR_BOLD, COLOR_BLUE, text, COLOR_RESET);
     std::process::exit(13);
 }
 
-// argument tools
-// getting and counting positional arguments
-#[allow(dead_code)]
+// ! argument tools
+//* getting and counting positional arguments
+
 pub fn min_arguments(min: usize) -> bool {
     // pulling the legnth from the standart env arguments
     let args_len: usize = std::env::args().len() - 1;
@@ -98,13 +90,11 @@ pub fn min_arguments(min: usize) -> bool {
     }
 }
 
-#[allow(dead_code)]
 pub fn fetch_arguments() -> Vec<String> {
     let args_array: Vec<_> = std::env::args().collect();
     return args_array;
 }
 
-#[allow(dead_code)]
 pub fn truncate(s: &str, max_chars: usize) -> &str {
     match s.char_indices().nth(max_chars) {
         None => s,
@@ -155,7 +145,6 @@ fn timestamp() -> String {
     return timestamp;
 }
 
-#[allow(dead_code)]
 pub fn start_log() {
     let mut log_msg: String = String::new();
     log_msg.push_str(" LOG START");
@@ -194,5 +183,12 @@ pub fn append_log(data: &str) {
     // Hendeling errs
     if let Err(_e) = writeln!(log_file, "{}", log_msg) {
         warn("Couldn't open already existing log file");
+    }
+}
+
+// ! File manipulation
+pub fn unexist(path: &str) {
+    if std::path::Path::new(path).exists() { // deleting the original one
+        std::fs::remove_file(path).unwrap();
     }
 }

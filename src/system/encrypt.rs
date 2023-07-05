@@ -10,12 +10,11 @@ use std::str;
 // my junk
 use crate::{
 system::{halt, truncate, warn}, 
-functions::fetch_key_data
+auth::fetch_key_data
 };
 
 pub type Aes256Cbc = Cbc<Aes256, Pkcs7>;
 
-#[allow(dead_code)]
 pub fn create_key() -> String {
     let key: String = rand::thread_rng()
         .sample_iter(&Alphanumeric)
@@ -25,7 +24,6 @@ pub fn create_key() -> String {
     return key;
 }
 
-#[allow(dead_code)]
 fn create_iv() -> String {
     // Generating initial vector
     let initial_vector: String = rand::thread_rng()
@@ -42,7 +40,6 @@ fn create_iv() -> String {
     return initial_vector;
 }
 
-#[allow(dead_code)]
 pub fn create_hash(data: String) -> String {
     let mut hasher = Sha256::new();
     hasher.update(data);
@@ -51,7 +48,6 @@ pub fn create_hash(data: String) -> String {
     // 256 because its responsible for generating the writing keys
 }
 
-#[allow(dead_code)]
 pub fn encrypt(data: String, key: String, buffer_size: usize) -> String {
     let iv = create_iv();
     let plain_text = data.as_bytes();
@@ -81,7 +77,6 @@ pub fn encrypt(data: String, key: String, buffer_size: usize) -> String {
     return cipherdata;
 }
 
-#[allow(dead_code)]
 pub fn decrypt(cipherdata: String, key: String) -> String {
     let cipherdata = cipherdata.clone();
     //cipherdata legnth minus the hmac because its appened later
