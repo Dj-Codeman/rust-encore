@@ -156,10 +156,14 @@ pub fn start_log() {
     // if al old log exists delete it
     if std::path::Path::new(LOG_FILE_LOCATION).exists() {
         std::fs::remove_file(LOG_FILE_LOCATION).unwrap();
-      }
-      
-    // create new log file
-    let mut log_file = OpenOptions::new().create_new(true).write(true).append(true).open(LOG_FILE_LOCATION).expect("File could not be opened");
+    }
+
+    let mut log_file = OpenOptions::new()
+    .create_new(true)
+    .write(true)
+    .append(true)
+    .open(LOG_FILE_LOCATION)
+    .expect("File could not be opened");
 
     if let Err(_e) = writeln!(log_file, "{}", log_msg) {
         halt("Could not create or write to new log file");

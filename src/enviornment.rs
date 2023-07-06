@@ -22,8 +22,6 @@ pub fn show_help() {
 pub fn initialize() {
     make_folders();
 
-    start_log();
-
     generate_system_key();
 
     generate_user_key();
@@ -46,13 +44,14 @@ pub fn make_folders() {
     paths.insert(1, PUBLIC_MAP_DIRECTORY);
     paths.insert(2, SECRET_MAP_DIRECTORY);
     paths.insert(3, COMMON_KEY_DIRECTORY);
-    paths.insert(4, "/var/encoregeneral");
 
     for path in paths.iter() {
         if std::path::Path::new(&path).exists() {
             create_dir_all(path).expect("making folders failed");
         }
     }
+
+    start_log();
     append_log("Folders recreated");
 }
 
