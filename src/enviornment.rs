@@ -1,4 +1,4 @@
-use std::fs::{ remove_dir_all, create_dir_all, };
+use std::fs::create_dir_all;
 use sysinfo::{System, SystemExt}; // for finding free ram for vectors
 
 use crate::{
@@ -39,18 +39,17 @@ pub fn make_folders() {
     // * Verifing path exists and creating missing ones 
     // ! RUNS EVERY RUN TIME
     output("GREEN", "Checking dir tree \n");
-    create_dir_all("/var/passrev").expect("making folders failed"); // make this dynamic
+    create_dir_all("/var/encore").expect("making folders failed"); // make this dynamic
 
     let mut paths = vec![];
     paths.insert(0, DATA_DIRECTORY);
     paths.insert(1, PUBLIC_MAP_DIRECTORY);
     paths.insert(2, SECRET_MAP_DIRECTORY);
     paths.insert(3, COMMON_KEY_DIRECTORY);
-    paths.insert(4, "/var/log/passrev");
+    paths.insert(4, "/var/encoregeneral");
 
     for path in paths.iter() {
         if std::path::Path::new(&path).exists() {
-            remove_dir_all(path).expect("couldn't delete folders");
             create_dir_all(path).expect("making folders failed");
         }
     }

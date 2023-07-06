@@ -12,7 +12,7 @@ const COLOR_BOLD:   &str = "\x1B[1m";
 const COLOR_RESET:  &str = "\u{001b}[0m";
 
 // Defining version number
-pub const VERSION: &str = "R1.1.0";  // ! R1.1.0 Changing the encoding from utf8
+pub const VERSION: &str = "R1.1.1";
 
 // Defining static content
 pub const HELP: &str = "\nencore [--write] encrypt new object [--read] decrypt object [--forget] delete a stored object 
