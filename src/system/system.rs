@@ -71,7 +71,7 @@ pub fn halt(text: &str) {
 
 // * for debugging only
 pub fn _dump(text: &str) {
-    println!("{}{}DUMPED: {}! {}", COLOR_BOLD, COLOR_BLUE, text, COLOR_RESET);
+    println!("{}{}DUMPED: {}! {}", COLOR_BOLD, COLOR_YELLOW, text, COLOR_RESET);
     std::process::exit(13);
 }
 

@@ -15,10 +15,10 @@ auth::fetch_key_data
 
 pub type Aes256Cbc = Cbc<Aes256, Pkcs7>;
 
-pub fn create_key() -> String {
+pub fn create_secure_chunk() -> String {
     let key: String = rand::thread_rng()
         .sample_iter(&Alphanumeric)
-        .take(32)
+        .take(80963)
         .map(char::from)
         .collect();
     return key;
@@ -40,7 +40,7 @@ fn create_iv() -> String {
     return initial_vector;
 }
 
-pub fn create_hash(data: String) -> String {
+pub fn create_hash(data: &String) -> String {
     let mut hasher = Sha256::new();
     hasher.update(data);
     let result = hasher.finalize();

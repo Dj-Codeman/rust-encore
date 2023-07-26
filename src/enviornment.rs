@@ -3,7 +3,7 @@ use sysinfo::{System, SystemExt}; // for finding free ram for vectors
 
 use crate::{
     system::{output, notice, pass, VERSION, HELP, append_log, start_log}, 
-    auth::{generate_system_key, generate_common_keys, generate_user_key},
+    auth::{generate_system_array, generate_user_key},
     config::{PUBLIC_MAP_DIRECTORY, COMMON_KEY_DIRECTORY, SECRET_MAP_DIRECTORY, DATA_DIRECTORY, STREAMING_BUFFER_SIZE},
 };
 
@@ -22,11 +22,9 @@ pub fn show_help() {
 pub fn initialize() {
     make_folders();
 
-    generate_system_key();
+    generate_system_array();
 
     generate_user_key();
-
-    generate_common_keys();
 
     pass("System initialized");
 }

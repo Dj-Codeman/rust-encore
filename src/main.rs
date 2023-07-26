@@ -4,6 +4,9 @@
 #[path = "system/config.rs"] mod config;
 #[path = "auth.rs"] mod auth;
 #[path = "enviornment.rs"] mod local_env;
+#[path = "package.rs"] mod package;
+
+use auth::generate_system_array;
 
 use crate::{
     system::{halt, notice, warn, pass, min_arguments, fetch_arguments, HELP, append_log}, 
@@ -111,6 +114,9 @@ fn main() {
             }
             "--system-test" => {
                 warn("system tests")
+            }
+            "--test" => {
+                generate_system_array();
             }
             _ => {
                 notice(HELP);

@@ -46,20 +46,9 @@ pub const SYSTEM_KEY_LOCATION: &str = "/var/systemkey.dk";
 pub const USER_KEY_LOCATION: &str = "/var/userkey.dk";
 
 	// log dir
-
-// pub const LOG_FILE_LOCATION: &str = "/var/log/encore/general";
+	// pub const LOG_FILE_LOCATION: &str = "/var/log/encore/general";
+	
 pub const LOG_FILE_LOCATION: &str = "/var/encore/general";
-
-	//  key_max the limit of keys to generate
-	//  default=50000
-
-pub const KEY_GEN_UPPER_LIMIT: u32 = 5000;
-
-	//  Works like a key min value
-	//  by key_cur and key_max the range from which keys are picked
-	//  can be changed
-
-pub const KEY_GEN_LOWER_LIMIT: u32 = 0;
 
 	// currently for debuging 
 	// the stream buffer will be dynamically assigned at runtime

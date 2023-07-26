@@ -11,8 +11,7 @@ use std::{
 use crate::{
     system::{halt, truncate, warn, notice, output, append_log, VERSION}, 
     encrypt::{encrypt, decrypt, create_hash},
-    config::{KEY_GEN_UPPER_LIMIT, KEY_GEN_LOWER_LIMIT,
-        SECRET_MAP_DIRECTORY, DATA_DIRECTORY, SOFT_MOVE_FILES, LEAVE_IN_PEACE,
+    config::{SECRET_MAP_DIRECTORY, DATA_DIRECTORY, SOFT_MOVE_FILES, LEAVE_IN_PEACE,
         },
 };
 
@@ -70,11 +69,12 @@ pub fn write(filename: String, secret_owner: String, secret_name: String) -> boo
 
         // using the rand crate pick a num between our range
         let mut rng = rand::thread_rng();
+        // ! DEPRICATING USE FROM ARRAY
         let range = Uniform::new(KEY_GEN_LOWER_LIMIT, KEY_GEN_UPPER_LIMIT);
         let key = range.sample(&mut rng);
 
         // creating the rest of the struct data
-        let unique_id: String = truncate(&encode(create_hash(filename.clone())), 20).to_string();
+        let unique_id: String = truncate(&encode(create_hash(&filename)), 20).to_string();
         let canon_path = canonicalize(&filename).expect("path doesn't exist").display().to_string();
 
         // create the secret path
@@ -87,7 +87,7 @@ pub fn write(filename: String, secret_owner: String, secret_name: String) -> boo
         // Determining chunk amount and size 
         let chunk_count: usize = file_size as usize / buffer_size;
         // make a hash 
-        let full_file_hash: String = create_hash(filename.clone());
+        let full_file_hash: String = create_hash(&filename);
 
         // Creating the struct
         let secret_data_struct: SecretDataIndex = SecretDataIndex {
@@ -151,7 +151,7 @@ pub fn write(filename: String, secret_owner: String, secret_name: String) -> boo
                     sig_data.push_str("-");
                     sig_data.push_str(VERSION);
                     sig_data.push_str("-");
-                    sig_data.push_str(&truncate(&create_hash(encoded_buffer.clone()), 20).to_string()); 
+                    sig_data.push_str(&truncate(&create_hash(&encoded_buffer), 20).to_string()); 
                     sig_data.push_str("-");
                     sig_data.push_str(&signature_count.to_string());
     
@@ -328,7 +328,7 @@ pub fn read(secret_owner: String, secret_name: String) -> bool {
             }
 
             let sig_hash = truncate(&signature[9..], 20);
-            if truncate(&create_hash(encoded_buffer.clone()), 20).to_string() != sig_hash {
+            if truncate(&create_hash(&encoded_buffer), 20).to_string() != sig_hash {
                 append_log("A chunk had an invalid has signature");
                 append_log("check the debug help for a potential solution");
                 halt("STREAM INTEGRITY CHECK FAILED");
