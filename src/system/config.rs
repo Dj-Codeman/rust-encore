@@ -47,7 +47,7 @@ pub const USER_KEY_LOCATION: &str = "/var/userkey.dk";
 
 	// log dir
 	// pub const LOG_FILE_LOCATION: &str = "/var/log/encore/general";
-	
+
 pub const LOG_FILE_LOCATION: &str = "/var/encore/general";
 
 	// currently for debuging 
@@ -90,3 +90,6 @@ pub const LEAVE_IN_PEACE: bool = false;
 // TODO use this somewhere
 pub const USE_PRE_DEFINED_USERKEY: bool = true;
 pub const PRE_DEFINED_USERKEY: &str = "Secret1!";
+
+// TODO add notes
+pub const ARRAY_LEN: u32 = 80963;

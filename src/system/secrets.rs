@@ -11,14 +11,11 @@ use std::{
 use crate::{
     system::{halt, truncate, warn, notice, output, append_log, VERSION}, 
     encrypt::{encrypt, decrypt, create_hash},
-    config::{SECRET_MAP_DIRECTORY, DATA_DIRECTORY, SOFT_MOVE_FILES, LEAVE_IN_PEACE,
-        },
-};
-
-use crate::{
-    auth::{fetch_key_data, create_writing_key},
+    config::{SECRET_MAP_DIRECTORY, DATA_DIRECTORY, SOFT_MOVE_FILES, LEAVE_IN_PEACE,},
+    auth::{fetch_chunk, array_arimitics, create_writing_key},
     local_env::calc_buffer
 };
+
 
 // ! This is the struct for all secrets CHANGE WITH CARE
 #[derive(Serialize, Deserialize, Debug)]
@@ -67,11 +64,13 @@ pub fn write(filename: String, secret_owner: String, secret_name: String) -> boo
         secret_map_path.push_str(&secret_name);
         secret_map_path.push_str(".json");
 
-        // using the rand crate pick a num between our range
+        // ? picking a chunk number
+        let upper_limit: u32 = array_arimitics();
+        let lower_limit: u32 = 1;
+
         let mut rng = rand::thread_rng();
-        // ! DEPRICATING USE FROM ARRAY
-        let range = Uniform::new(KEY_GEN_LOWER_LIMIT, KEY_GEN_UPPER_LIMIT);
-        let key = range.sample(&mut rng);
+        let range = Uniform::new(lower_limit, upper_limit);
+        let num = range.sample(&mut rng);
 
         // creating the rest of the struct data
         let unique_id: String = truncate(&encode(create_hash(&filename)), 20).to_string();
@@ -82,7 +81,7 @@ pub fn write(filename: String, secret_owner: String, secret_name: String) -> boo
         secret_path.push_str(DATA_DIRECTORY);
         secret_path.push_str("/");
         secret_path.push_str(&unique_id);
-        secret_path.push_str(".res"); // rust encode secret
+        secret_path.push_str(".recs"); // rust encode secret
 
         // Determining chunk amount and size 
         let chunk_count: usize = file_size as usize / buffer_size;
@@ -94,7 +93,7 @@ pub fn write(filename: String, secret_owner: String, secret_name: String) -> boo
             version: String::from(VERSION),
             name: String::from(&secret_name),
             owner: String::from(&secret_owner),
-            key,
+            key: num,
             unique_id,
             file_path: canon_path,
             secret_path: secret_path.clone(),
@@ -106,7 +105,8 @@ pub fn write(filename: String, secret_owner: String, secret_name: String) -> boo
 
         // formatting the json data
         let pretty_data_map = serde_json::to_string_pretty(&secret_data_struct).unwrap();
-        let cipher_data_map = encrypt(pretty_data_map, fetch_key_data("systemkey".to_string()), 1024); // ! system files like keys and maps are set to 1024 for buffer to make reading simple
+        let cipher_data_map = encrypt(pretty_data_map, fetch_chunk(1).to_string(), 1024); 
+        // ! system files like keys and maps are set to 1024 for buffer to make reading simple
 
         // this reads the entire file into a buffer
         let mut file = File::open(filename).unwrap(); 
@@ -158,7 +158,7 @@ pub fn write(filename: String, secret_owner: String, secret_name: String) -> boo
                     // hexing all the data for handeling
                     let signature: String = hex::encode(sig_data);
                     // TODO. There needs to be some sort of persistence for the writing key.
-                    let secret_buffer: String = encrypt(encoded_buffer.clone(), create_writing_key(key.to_string()), buffer_size);
+                    let secret_buffer: String = encrypt(encoded_buffer.clone(), create_writing_key(fetch_chunk(num).to_string()), buffer_size);
     
                     // this is the one var thatll be pushed to file
                     let mut processed_chunk: String = String::new();
@@ -236,8 +236,8 @@ pub fn read(secret_owner: String, secret_name: String) -> bool {
     
     let secret_json_existence: bool = Path::new(&secret_map_path).exists();
     if secret_json_existence {
-        let cipher_map_data = read_to_string(secret_map_path).expect("Couldn't read the map file");        
-        let secret_map_data = decrypt(cipher_map_data, fetch_key_data("systemkey".to_string()));
+        let cipher_map_data = read_to_string(secret_map_path).expect("Couldn't read the map file");                
+        let secret_map_data = decrypt(cipher_map_data, fetch_chunk(1).to_string());
         let secret_map: SecretDataIndex = serde_json::from_str(&secret_map_data).unwrap();
 
         // ! Validating that we can mess with this data
@@ -251,7 +251,7 @@ pub fn read(secret_owner: String, secret_name: String) -> bool {
         }
     
         // generating the secret key for the file
-        let writting_key: String = create_writing_key(secret_map.key.to_string());
+        let writting_key: String = create_writing_key(fetch_chunk(secret_map.key).to_string());
 
         // Create chunk map from sig
         // ! this has to be modified to account for the second end byte
@@ -379,7 +379,7 @@ pub fn forget(secret_owner: String, secret_name: String) -> bool {
     // testing if the secret json exists before starting encryption
     if Path::new(&secret_map_path).exists() {
         let cipher_map_data = read_to_string(secret_map_path.clone()).expect("Couldn't read the json file");        
-        let secret_map_data = decrypt(cipher_map_data, fetch_key_data("systemkey".to_string()));
+        let secret_map_data = decrypt(cipher_map_data, fetch_chunk(1).to_string());
         let secret_map: SecretDataIndex = serde_json::from_str(&secret_map_data).unwrap();
         // the config 
         if LEAVE_IN_PEACE {

@@ -2,8 +2,8 @@ use std::fs::create_dir_all;
 use sysinfo::{System, SystemExt}; // for finding free ram for vectors
 
 use crate::{
-    system::{output, notice, pass, VERSION, HELP, append_log, start_log}, 
-    auth::{generate_system_array, generate_user_key},
+    system::{output, notice, pass, halt, VERSION, HELP, append_log, start_log}, 
+    auth::{generate_system_array, generate_user_key, index_system_array},
     config::{PUBLIC_MAP_DIRECTORY, COMMON_KEY_DIRECTORY, SECRET_MAP_DIRECTORY, DATA_DIRECTORY, STREAMING_BUFFER_SIZE},
 };
 
@@ -22,7 +22,11 @@ pub fn show_help() {
 pub fn initialize() {
     make_folders();
 
-    generate_system_array();
+    if generate_system_array() == true {
+        if index_system_array() == false { halt("Could not index the system array !"); }
+    } else {
+        halt("An error occoured while creating the system array");
+    }
 
     generate_user_key();
 

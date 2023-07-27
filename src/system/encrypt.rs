@@ -10,7 +10,8 @@ use std::str;
 // my junk
 use crate::{
 system::{halt, truncate, warn}, 
-auth::fetch_key_data
+// auth::fetch_key_data,
+config::ARRAY_LEN, auth::fetch_chunk,
 };
 
 pub type Aes256Cbc = Cbc<Aes256, Pkcs7>;
@@ -18,7 +19,7 @@ pub type Aes256Cbc = Cbc<Aes256, Pkcs7>;
 pub fn create_secure_chunk() -> String {
     let key: String = rand::thread_rng()
         .sample_iter(&Alphanumeric)
-        .take(80963)
+        .take(ARRAY_LEN as usize)
         .map(char::from)
         .collect();
     return key;
@@ -74,6 +75,7 @@ pub fn encrypt(data: String, key: String, buffer_size: usize) -> String {
     cipherdata.push_str(&hmac);
     // buffer.clear();
 
+    warn(&cipherdata);
     return cipherdata;
 }
 
@@ -118,7 +120,7 @@ fn create_hmac(cipherdata: String) -> String {
     type HmacSha256 = Hmac<Sha256>;
 
     // when the hmac is verified we check aginst the systemkey
-    let mut mac = HmacSha256::new_from_slice(fetch_key_data("systemkey".to_string()).as_bytes())
+    let mut mac = HmacSha256::new_from_slice(fetch_chunk(1).as_bytes())
     .expect("HMAC can take key of any size");
 
     mac.update(cipherdata.as_bytes());
