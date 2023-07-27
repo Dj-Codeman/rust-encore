@@ -75,7 +75,6 @@ pub fn encrypt(data: String, key: String, buffer_size: usize) -> String {
     cipherdata.push_str(&hmac);
     // buffer.clear();
 
-    warn(&cipherdata);
     return cipherdata;
 }
 

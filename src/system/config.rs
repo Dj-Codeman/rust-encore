@@ -6,49 +6,41 @@
 
 pub const DATA_DIRECTORY: &str = "/var/encore/secrets";
 
-
 	//  JSON This is where plan text maps will live
 	//  these are generated along side the keys
 	//  default /var/encore/indexs
 
-pub const PUBLIC_MAP_DIRECTORY: &str = "/var/encore/key-maps";
+pub const PUBLIC_MAP_DIRECTORY: &str = "/var/encore/maps";
 
 	//  This is where the encrypted jsons for written file
 	//  will live. The json debug tool should be used to decrypt
 	//  and modify these files
 
-pub const SECRET_MAP_DIRECTORY: &str = "/var/encore/secret-maps";
+pub const SECRET_MAP_DIRECTORY: &str = "/var/encore/secure_maps";
 
-	//  KEY These are the random encryption keys
-	//  128 bit strings for use with the encrypt script
-	//  https://www.fastsitephp.com/fr/documents/file-encryption-bash
-	//  default /opt/encore/keys
-
-pub const COMMON_KEY_DIRECTORY: &str = "/var/encore/keys";
-
-	//  SYSTEM KEY JSON file that contain location and key information
-	//  are encrypted using this key
+	//  SYSTEM ARRAY file is a chunk of crypto safe* random numbers
+	//  this file is used to create the userkey and encrypt files
 	//  if this key is missing on script call all file in:
 	//  $datadir will be illegible
 	//  IF THIS KEY IS DELETED ALL DATA IS CONSIDERED LOST
 	//  default /opt/encore/keys/systemkey.dk
 
 
-pub const SYSTEM_KEY_LOCATION: &str = "/var/systemkey.dk";
+pub const SYSTEM_ARRAY_LOCATION: &str = "/var/encore/array.recs";
 
 	//	The user key is derived from the users specific password
-	//	This is the key used to encrypt the files them selfs while
-	//	the maps and indexs will still use the system key
+	//	This is the key used to encrypt the files while
+	//	the maps will still use the system array
 	//  if this key is missing on script call all file in:
 	//  $datadir will be illegible
 	//  IF THIS KEY IS DELETED ALL DATA IS CONSIDERED LOST
 
-pub const USER_KEY_LOCATION: &str = "/var/userkey.dk";
+pub const USER_KEY_LOCATION: &str = "/var/encore/userdata.recs";
 
 	// log dir
 	// pub const LOG_FILE_LOCATION: &str = "/var/log/encore/general";
 
-pub const LOG_FILE_LOCATION: &str = "/var/encore/general";
+pub const LOG_FILE_LOCATION: &str = "/var/log/encore.log";
 
 	// currently for debuging 
 	// the stream buffer will be dynamically assigned at runtime
@@ -64,15 +56,6 @@ pub const STREAMING_BUFFER_SIZE: f64 = 102400.00;
 
 pub const SOFT_MOVE_FILES: bool = false;
 
-	//  re-place file
-	//  the original path of files are stored when encrypted
-	//  if set files will be re placed back in there original
-	//  directory
-	//  default= true
-
-
-// ! safe to dep ?
-pub const _REPLACE_FILE_ON_DEL: bool = true;
 
 	//  save on destroy
 	//  if you want the destroy function to recover the file before deleting

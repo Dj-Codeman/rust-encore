@@ -6,7 +6,7 @@
 #[path = "enviornment.rs"] mod local_env;
 #[path = "package.rs"] mod package;
 
-use auth::generate_system_array;
+use auth::fetch_chunk;
 
 use crate::{
     system::{halt, notice, warn, pass, min_arguments, fetch_arguments, HELP, append_log}, 
@@ -116,7 +116,7 @@ fn main() {
                 warn("system tests")
             }
             "--test" => {
-                generate_system_array();
+                notice(&fetch_chunk(1));
             }
             _ => {
                 notice(HELP);

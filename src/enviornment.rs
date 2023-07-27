@@ -2,9 +2,9 @@ use std::fs::create_dir_all;
 use sysinfo::{System, SystemExt}; // for finding free ram for vectors
 
 use crate::{
-    system::{output, notice, pass, halt, VERSION, HELP, append_log, start_log}, 
+    system::{output, notice, pass, halt, VERSION, HELP, append_log, start_log, unexist}, 
     auth::{generate_system_array, generate_user_key, index_system_array},
-    config::{PUBLIC_MAP_DIRECTORY, COMMON_KEY_DIRECTORY, SECRET_MAP_DIRECTORY, DATA_DIRECTORY, STREAMING_BUFFER_SIZE},
+    config::{PUBLIC_MAP_DIRECTORY, SECRET_MAP_DIRECTORY, DATA_DIRECTORY, STREAMING_BUFFER_SIZE},
 };
 
 // !  enviornment as in program
@@ -45,11 +45,13 @@ pub fn make_folders() {
     paths.insert(0, DATA_DIRECTORY);
     paths.insert(1, PUBLIC_MAP_DIRECTORY);
     paths.insert(2, SECRET_MAP_DIRECTORY);
-    paths.insert(3, COMMON_KEY_DIRECTORY);
 
     for path in paths.iter() {
         if std::path::Path::new(&path).exists() {
+            unexist(path);
             create_dir_all(path).expect("making folders failed");
+        } else {
+            create_dir_all(path).expect("making folders failed");   
         }
     }
 

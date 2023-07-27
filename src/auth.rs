@@ -4,14 +4,14 @@ use ring::pbkdf2;
 use rpassword::read_password;
 use serde::{Deserialize, Serialize};
 use std::{
-    fs::{File, OpenOptions},
+    fs::{File, OpenOptions, read_to_string},
     io::{prelude::*, SeekFrom, Write},
     str,
 };
 
 use crate::{
     config::{
-        ARRAY_LEN, PRE_DEFINED_USERKEY, PUBLIC_MAP_DIRECTORY, SYSTEM_KEY_LOCATION,
+        ARRAY_LEN, PRE_DEFINED_USERKEY, PUBLIC_MAP_DIRECTORY, SYSTEM_ARRAY_LOCATION,
         USER_KEY_LOCATION, USE_PRE_DEFINED_USERKEY,
     },
     encrypt::{create_hash, create_secure_chunk, decrypt, encrypt},
@@ -147,7 +147,7 @@ pub fn generate_system_array() -> bool {
     append_log("Creating system array");
 
     // writing the system key to the file specified
-    unexist(&SYSTEM_KEY_LOCATION);
+    unexist(&SYSTEM_ARRAY_LOCATION);
 
     // Creating the key file
     // ! Creating Header
@@ -178,7 +178,7 @@ pub fn generate_system_array() -> bool {
         .create_new(true)
         .write(true)
         .append(true)
-        .open(SYSTEM_KEY_LOCATION)
+        .open(SYSTEM_ARRAY_LOCATION)
         .expect("File could not be opened");
 
     // writing the data and checking for errors
@@ -187,6 +187,7 @@ pub fn generate_system_array() -> bool {
         return false;
     }
 
+    notice("Created system array");
     return true;
 }
 
@@ -199,7 +200,7 @@ pub fn index_system_array() -> bool {
     let mut range_end: u32 = BEG_CHAR + CHUNK_SIZE as u32;
     let mut buffer: Vec<u8> = vec![0; CHUNK_SIZE];
     let mut chunk: String = String::new();
-    let mut file = File::open(SYSTEM_KEY_LOCATION).unwrap();
+    let mut file = File::open(SYSTEM_ARRAY_LOCATION).unwrap();
 
     // ! idiot profing
     let range_len = range_end - range_start;
@@ -229,7 +230,7 @@ pub fn index_system_array() -> bool {
                 let chunk_hash: &str = &create_hash(&chunk);
 
                 let chunk_map: ChunkMap = ChunkMap {
-                    location: SYSTEM_KEY_LOCATION.to_string(),
+                    location: SYSTEM_ARRAY_LOCATION.to_string(),
                     version: VERSION.to_string(),
                     chunk_hsh: chunk_hash.to_string(),
                     chunk_num: chunk_number,
@@ -259,9 +260,6 @@ pub fn index_system_array() -> bool {
                     warn("Could not write json data to file");
                     return false;
                 }
-                // todo remove after validating
-                notice(&chunk);
-                warn(&chunk_hash);
             }
             Err(_) => break,
         }
@@ -273,7 +271,8 @@ pub fn index_system_array() -> bool {
         range_end += CHUNK_SIZE as u32;
     }
 
-    append_log("Created system array !");
+    append_log("Indexed system array !");
+    notice("Indexed system array");
     return true;
 }
 
@@ -303,8 +302,8 @@ pub fn auth_user_key() -> String {
 
     let userkey = hex::encode(&password_key);
     let secret: String = "The hotdog man isn't real !?".to_string();
-
-    let verification_ciphertext: String = fetch_chunk(1);
+    // ! make the read the userkey from the map in the future
+    let verification_ciphertext: String = read_to_string(USER_KEY_LOCATION).expect("Couldn't read the map file");
 
     let verification_result: String = decrypt(verification_ciphertext.to_string(), userkey.clone());
 
@@ -374,7 +373,7 @@ pub fn fetch_chunk(num: u32) -> String {
         let chunk_end: u32 = pretty_map_data.chunk_end;
         let mut buffer: Vec<u8> = vec![0; CHUNK_SIZE];
         let mut chunk: String = String::new();
-        let mut file = File::open(SYSTEM_KEY_LOCATION).unwrap();
+        let mut file = File::open(SYSTEM_ARRAY_LOCATION).unwrap();
 
         // ! param check
         let range_len = chunk_end - chunk_start;
@@ -422,7 +421,6 @@ pub fn fetch_chunk(num: u32) -> String {
             halt(&log);
         }
 
-        notice(&chunk);
         return chunk;
     }
 }
