@@ -15,7 +15,7 @@ use crate::{
         USER_KEY_LOCATION, USE_PRE_DEFINED_USERKEY,
     },
     encrypt::{create_hash, create_secure_chunk, decrypt, encrypt},
-    system::{append_log, halt, notice, unexist, warn, VERSION},
+    system::{append_log, halt, notice, unexist, warn, VERSION, output},
 };
 
 // pbkdf Generator specs
@@ -264,6 +264,8 @@ pub fn index_system_array() -> bool {
             Err(_) => break,
         }
 
+        output("BLUE", ".");
+        if chunk_number % 17 == 0 { output("YELLOW", "*"); }
         // ? restting the indexs
         chunk_number += 1;
         chunk = "".to_string();
@@ -271,6 +273,7 @@ pub fn index_system_array() -> bool {
         range_end += CHUNK_SIZE as u32;
     }
 
+    output("BLUE", "\n");
     append_log("Indexed system array !");
     notice("Indexed system array");
     return true;
